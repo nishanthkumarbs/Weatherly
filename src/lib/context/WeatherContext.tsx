@@ -18,6 +18,8 @@ interface WeatherContextType {
   searching: boolean;
   activeMapModal: boolean;
   setActiveMapModal: (open: boolean) => void;
+  isOffline: boolean;
+  cachedTime: string | null;
 }
 
 const WeatherContext = createContext<WeatherContextType | undefined>(undefined);
@@ -34,6 +36,8 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
+  const [cachedTime, setCachedTime] = useState<string | null>(null);
 
   // Search autocomplete state
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,8 +70,9 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
 
       const weatherData: WeatherDataResponse = await res.json();
       setData(weatherData);
+      setIsOffline(false);
 
-      // Save last location to localStorage
+      // Save last location and payload to localStorage for offline access
       try {
         localStorage.setItem(
           'weatherly_last_location',
@@ -77,9 +82,26 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
             name: cityName || weatherData.location.name,
           })
         );
+        localStorage.setItem('weatherly_cached_payload', JSON.stringify(weatherData));
+        localStorage.setItem('weatherly_cached_time', new Date().toISOString());
+        setCachedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       } catch {}
     } catch (err: unknown) {
       console.error(err);
+      // Try restoring from offline cache if available
+      try {
+        const cachedPayload = localStorage.getItem('weatherly_cached_payload');
+        const savedTime = localStorage.getItem('weatherly_cached_time');
+        if (cachedPayload) {
+          const parsed = JSON.parse(cachedPayload);
+          setData(parsed);
+          setIsOffline(true);
+          if (savedTime) {
+            setCachedTime(new Date(savedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+          }
+          return;
+        }
+      } catch {}
       setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setLoading(false);
@@ -192,6 +214,8 @@ export function WeatherProvider({ children }: { children: React.ReactNode }) {
         searching,
         activeMapModal,
         setActiveMapModal,
+        isOffline,
+        cachedTime,
       }}
     >
       {children}

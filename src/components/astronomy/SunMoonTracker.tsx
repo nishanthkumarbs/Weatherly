@@ -95,14 +95,23 @@ export function SunMoonTracker() {
             )}
           </div>
 
-          <div className="text-center text-xs text-slate-400">
-            {isDay ? (
-              <span>
-                Daylight remaining: <strong className="text-white">{Math.round((sunset - now) / 3600)} hrs {Math.round(((sunset - now) % 3600) / 60)} mins</strong>
-              </span>
-            ) : (
-              <span>Sun is currently below the local horizon</span>
-            )}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              {isDay ? (
+                <span>
+                  Daylight remaining: <strong className="text-white">{Math.round((sunset - now) / 3600)}h {Math.round(((sunset - now) % 3600) / 60)}m</strong>
+                </span>
+              ) : (
+                <span>Sun below local horizon</span>
+              )}
+              <span className="font-mono text-amber-300 text-[11px]">{Math.round(daylightProgress)}% elapsed</span>
+            </div>
+            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-amber-400 via-amber-300 to-orange-500 rounded-full transition-all duration-700"
+                style={{ width: `${daylightProgress}%` }}
+              />
+            </div>
           </div>
         </div>
 

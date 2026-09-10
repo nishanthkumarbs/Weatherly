@@ -1,15 +1,32 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWeather } from '@/lib/context/WeatherContext';
 import { useUnits } from '@/lib/context/UnitsContext';
 import { formatTemperature, formatSpeed, getWindCompass } from '@/lib/utils/formatters';
 import { WeatherIcon } from '@/lib/utils/weather-icons';
 import { MapPin, ArrowUp, ArrowDown, Droplets, Wind, Gauge, Compass } from 'lucide-react';
 
+interface NormalComparison {
+  tenYearAvg: number;
+  diff: number;
+  comparisonText: string;
+}
+
 export function CurrentHeroCard() {
   const { data } = useWeather();
   const { tempUnit, speedUnit } = useUnits();
+  const [normalComparison, setNormalComparison] = useState<NormalComparison | null>(null);
+
+  useEffect(() => {
+    if (!data) return;
+    fetch(`/api/historical-normal?lat=${data.location.lat}&lon=${data.location.lon}&currentTemp=${data.current.temp}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (json && json.comparisonText) setNormalComparison(json);
+      })
+      .catch(() => {});
+  }, [data?.location.lat, data?.location.lon, data?.current.temp]);
 
   if (!data) return null;
 
@@ -70,10 +87,24 @@ export function CurrentHeroCard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold capitalize">
               {current.description}
             </span>
+            {normalComparison && (
+              <span
+                className={`px-3 py-1 rounded-full border text-xs font-semibold flex items-center gap-1.5 ${
+                  normalComparison.diff > 0
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                    : normalComparison.diff < 0
+                    ? 'bg-sky-500/20 text-sky-300 border-sky-500/30'
+                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                }`}
+                title={`10-Year historical average for this date: ${normalComparison.tenYearAvg}°C`}
+              >
+                <span>{normalComparison.comparisonText}</span>
+              </span>
+            )}
             <span className="text-xs text-slate-400">
               Dew point: {formatTemperature(current.dew_point, tempUnit)}
             </span>

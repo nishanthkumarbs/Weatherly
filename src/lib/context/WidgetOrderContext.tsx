@@ -2,10 +2,12 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { WidgetId, WidgetConfig } from '@/lib/types/weather';
+import { arrayMove } from '@dnd-kit/sortable';
 
 interface WidgetOrderContextType {
   widgets: WidgetConfig[];
   moveWidget: (id: WidgetId, direction: 'up' | 'down') => void;
+  reorderWidgets: (activeId: WidgetId, overId: WidgetId) => void;
   toggleWidget: (id: WidgetId) => void;
   resetOrder: () => void;
   isCustomized: boolean;
@@ -15,8 +17,8 @@ const DEFAULT_WIDGETS: WidgetConfig[] = [
   { id: 'severe_alerts', label: 'Severe Weather Alerts', enabled: true },
   { id: 'current_hero', label: 'Current Weather & Hero', enabled: true },
   { id: 'nowcast_minutely', label: '60-Minute Precipitation Nowcast', enabled: true },
-  { id: 'hourly_forecast', label: '48-Hour Hourly Forecast', enabled: true },
-  { id: 'radar_map', label: 'Interactive Live Radar Map', enabled: true },
+  { id: 'hourly_forecast', label: '48-Hour Hourly Outlook & Multi-Model', enabled: true },
+  { id: 'radar_map', label: 'Interactive Radar & Satellite Loop', enabled: true },
   { id: 'daily_forecast', label: '7-Day Extended Forecast', enabled: true },
   { id: 'conditions_metrics', label: 'Detailed Atmospheric Metrics', enabled: true },
   { id: 'air_quality', label: 'Air Quality Index (AQI)', enabled: true },
@@ -37,7 +39,6 @@ export function WidgetOrderProvider({ children }: { children: React.ReactNode })
       const saved = localStorage.getItem('weatherly_widgets_config');
       if (saved) {
         const parsed: WidgetConfig[] = JSON.parse(saved);
-        // Ensure all widgets exist even if config was saved from older version
         const existingIds = new Set(parsed.map((w) => w.id));
         const merged = [
           ...parsed,
@@ -63,10 +64,17 @@ export function WidgetOrderProvider({ children }: { children: React.ReactNode })
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= widgets.length) return;
 
-    const updated = [...widgets];
-    const [moved] = updated.splice(index, 1);
-    updated.splice(targetIndex, 0, moved);
+    const updated = arrayMove(widgets, index, targetIndex);
     saveConfig(updated);
+  };
+
+  const reorderWidgets = (activeId: WidgetId, overId: WidgetId) => {
+    const oldIndex = widgets.findIndex((w) => w.id === activeId);
+    const newIndex = widgets.findIndex((w) => w.id === overId);
+    if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+      const updated = arrayMove(widgets, oldIndex, newIndex);
+      saveConfig(updated);
+    }
   };
 
   const toggleWidget = (id: WidgetId) => {
@@ -87,6 +95,7 @@ export function WidgetOrderProvider({ children }: { children: React.ReactNode })
       value={{
         widgets,
         moveWidget,
+        reorderWidgets,
         toggleWidget,
         resetOrder,
         isCustomized,

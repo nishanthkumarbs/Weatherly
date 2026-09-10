@@ -48,8 +48,90 @@ export function Header() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      setPushEnabled(true);
+    }
+  }, []);
+
+  const handlePushToggle = async () => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('Notification' in window)) {
+      alert('Push notifications are not supported in this browser.');
+      return;
+    }
+
+    if (pushEnabled) {
+      setPushEnabled(false);
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert('Notification permission was denied.');
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.ready;
+      const keyRes = await fetch('/api/push/subscribe');
+      const { publicKey } = await keyRes.json();
+
+      const padding = '='.repeat((4 - (publicKey.length % 4)) % 4);
+      const base64 = (publicKey + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: outputArray,
+      });
+
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscription: sub,
+          lat: data?.location.lat,
+          lon: data?.location.lon,
+          cityName: data?.location.name,
+        }),
+      });
+
+      setPushEnabled(true);
+      alert('Subscribed to severe weather push notifications!');
+    } catch (err) {
+      console.warn('Push subscription failed:', err);
+      alert('Could not enable push notifications.');
+    }
+  };
+
+  const handleTestPush = async () => {
+    try {
+      const res = await fetch('/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: '⚠️ Severe Alert Test',
+          message: `Testing NWS emergency alert push notification for ${data?.location.name || 'your area'}.`,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert('Test notification sent!');
+      } else {
+        alert(json.message || 'Failed to send test push.');
+      }
+    } catch {
+      alert('Failed to trigger test push.');
+    }
+  };
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -322,6 +404,37 @@ export function Header() {
                     >
                       {dynamicBg ? 'Enabled' : 'Disabled'}
                     </button>
+                  </div>
+
+                  {/* Web Push Alerts */}
+                  <div className="pt-2 border-t border-white/10 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs text-white font-medium block">Push Notifications</span>
+                        <span className="text-[10px] text-slate-400 block">Severe NWS alerts</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handlePushToggle}
+                        className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                          pushEnabled
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-white/10 text-slate-300 hover:bg-white/15'
+                        }`}
+                      >
+                        {pushEnabled ? 'Subscribed' : 'Enable'}
+                      </button>
+                    </div>
+
+                    {pushEnabled && (
+                      <button
+                        type="button"
+                        onClick={handleTestPush}
+                        className="w-full py-1 text-[11px] rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-500/25 hover:bg-cyan-500/25 transition-colors font-medium text-center"
+                      >
+                        Send Test Push Notification
+                      </button>
+                    )}
                   </div>
                 </div>
 

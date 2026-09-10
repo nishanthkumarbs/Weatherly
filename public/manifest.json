@@ -1,0 +1,24 @@
+{
+  "name": "Weatherly - Advanced Hyperlocal Weather & Radar",
+  "short_name": "Weatherly",
+  "description": "Real-time weather forecasting, live radar loops, and severe alerts.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f19",
+  "theme_color": "#06b6d4",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
